@@ -80,6 +80,9 @@ class VfApi {
         'x-agent-version': _ver,
         'x-agent-build': _build,
         'msisdn': msisdn,
+        'device-id': _deviceId,
+        'User-Agent': 'okhttp/4.12.0',
+        'Accept-Encoding': 'gzip',
         if (json) 'Content-Type': 'application/json; charset=UTF-8',
         if (json) 'Accept': 'application/json',
         ...?extra,
@@ -95,7 +98,9 @@ class VfApi {
         if (m != null) return '$m';
       }
     } catch (_) {}
-    return 'خطأ من السيرفر (${r.statusCode})';
+    var b = utf8.decode(r.bodyBytes, allowMalformed: true).replaceAll(RegExp(r'\s+'), ' ');
+    if (b.length > 120) b = b.substring(0, 120);
+    return 'خطأ من السيرفر (${r.statusCode}) ${r.request?.url.path ?? ''} $b';
   }
 
   // ---------- تسجيل الدخول ----------
@@ -113,6 +118,8 @@ class VfApi {
             Uri.parse('$base/auth/realms/vf-realm/protocol/openid-connect/token'),
             headers: {
               ..._h(json: false),
+              'Accept': 'application/json, text/plain, */*',
+              'silentLogin': 'true',
               'digitalId': _digitalId,
               'Content-Type': 'application/x-www-form-urlencoded',
             },
@@ -197,6 +204,15 @@ class VfApi {
     throw ApiException('تعذر قراءة الرصيد');
   }
 
+  Map<String, String> get _promoExtra => {
+        'api-version': 'v2',
+        'device-id': _deviceId,
+        'buildNumber': _build,
+        'operatingSystem': '185001',
+        'platform': 'Android',
+        'deviceType': 'Infinix-X6728',
+      };
+
   // ---------- العروض (type: 6 وحدات، 2 ميجابيتس) ----------
   Future<List<Offer>> offers(String type) async {
     double bal = 0;
@@ -206,7 +222,7 @@ class VfApi {
     final r = await _req(
       'POST',
       '$base/mobile-app-upgrade/promo/unifiedEligiblityPromo?lang=ar',
-      extra: {'api-version': 'v2', 'device-id': _deviceId},
+      extra: _promoExtra,
       body: jsonEncode({
         'promoId': 2633,
         'channelId': '1',
@@ -235,7 +251,7 @@ class VfApi {
     final r = await _req(
       'POST',
       '$base/mobile-app-upgrade/promo/unifiedRedeemPromo?lang=ar',
-      extra: {'api-version': 'v2', 'device-id': _deviceId},
+      extra: _promoExtra,
       body: jsonEncode({
         'promoId': 2633,
         'channelId': '1',
